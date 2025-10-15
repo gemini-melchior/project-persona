@@ -9,7 +9,7 @@ const sendBtn = document.getElementById("send-btn");
 // --- 2. INITIALIZE THE GEMINI API ---
 const API_KEY = "AIzaSyCdZJ2NkDbEmljBA9SQgs7PT6X5wakC_jk"; // <-- PASTE YOUR KEY HERE
 const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-pro-latest" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 // --- 3. ADD EVENT LISTENERS ---
 // Listen for clicks on the send button
