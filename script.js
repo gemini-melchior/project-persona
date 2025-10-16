@@ -1,75 +1,160 @@
-// This line imports the GoogleGenerativeAI class from the SDK module.
 import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
 // --- 1. GET REFERENCES TO OUR HTML ELEMENTS ---
 const chatWindow = document.getElementById("chat-window");
 const userInput = document.getElementById("user-input");
 const sendBtn = document.getElementById("send-btn");
+const micBtn = document.getElementById("mic-btn");
+const avatarContainer = document.getElementById("avatar-container");
+const avatarImg = document.getElementById("avatar-img");
+const settingsBtn = document.getElementById("settings-btn");
+const settingsPanel = document.getElementById("settings-panel");
+const closeSettingsBtn = document.getElementById("close-settings-btn");
+const avatarPrompt = document.getElementById("avatar-prompt");
+const generateAvatarBtn = document.getElementById("generate-avatar-btn");
 
-// --- 2. INITIALIZE THE GEMINI API ---
-const API_KEY = "AIzaSyCdZJ2NkDbEmljBA9SQgs7PT6X5wakC_jk"; // <-- PASTE YOUR KEY HERE
-const genAI = new GoogleGenerativeAI(API_KEY);
+// --- 2. INITIALIZE APIS ---
+const GEMINI_API_KEY = "AIzaSyCdZJ2NkDbEmljBA9SQgs7PT6X5wakC_jk"; // <-- Paste your Gemini key here
+const STABILITY_API_KEY = "sk-KY4iJe2dJi4vplfDy2ILm52FvEqb87rvPeoNZCbIJwUSYmrf"; // <-- Paste your Stability AI key here
+
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-// --- 3. ADD EVENT LISTENERS ---
-// Listen for clicks on the send button
+// --- 3. SPEECH SYNTHESIS & RECOGNITION SETUP ---
+// (This section is unchanged)
+let availableVoices = [];
+function loadVoices() {
+    availableVoices = window.speechSynthesis.getVoices();
+}
+window.speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
+// ... (rest of speech setup code)
+
+
+// --- 4. ADD EVENT LISTENERS ---
+// (This section is unchanged)
 sendBtn.addEventListener("click", handleUserInput);
-
-// Listen for "Enter" keypress in the input field
 userInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-        handleUserInput();
-    }
+    if (event.key === "Enter") handleUserInput();
 });
+micBtn.addEventListener("click", () => { /* ... */ });
+settingsBtn.addEventListener("click", () => settingsPanel.classList.add("visible"));
+closeSettingsBtn.addEventListener("click", () => settingsPanel.classList.remove("visible"));
+generateAvatarBtn.addEventListener("click", handleAvatarGeneration);
 
-// --- 4. DEFINE THE MAIN FUNCTION ---
-async function handleUserInput() {
-    const userMessage = userInput.value.trim();
 
-    // If the message is empty, do nothing
-    if (!userMessage) {
+// --- 5. DEFINE THE MAIN FUNCTIONS ---
+
+// ** THIS IS THE UPDATED FUNCTION **
+async function handleAvatarGeneration() {
+    const promptText = avatarPrompt.value.trim();
+    if (!promptText) {
+        alert("Please enter a description for your avatar.");
         return;
     }
 
-    // Add the user's message to the chat window
-    addMessageToChat("user", userMessage);
+    generateAvatarBtn.textContent = "Generating...";
+    generateAvatarBtn.disabled = true;
 
-    // Clear the input field
-    userInput.value = "";
+    // Create a FormData object, which is required for the new API
+    const formData = new FormData();
+    formData.append('prompt', `a vibrant, high-quality, Ghibli-style anime avatar of ${promptText}`);
+    formData.append('output_format', 'webp');
 
     try {
-        // Send the user's message to the Gemini API
-        const result = await model.generateContent(userMessage);
-        const response = await result.response;
-        const aiMessage = response.text();
+        const response = await fetch(
+            `https://api.stability.ai/v2beta/stable-image/generate/core`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${STABILITY_API_KEY}`,
+                    'Accept': 'image/*' // We expect an image in response
+                },
+                body: formData // Send the FormData object as the body
+            }
+        );
 
-        // Add the AI's response to the chat window
-        addMessageToChat("persona", aiMessage);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // The response is the image file itself, so we read it as a Blob
+        const imageBlob = await response.blob();
+        
+        // Create a temporary URL for the Blob to display it in the <img> tag
+        const imageUrl = URL.createObjectURL(imageBlob);
+        
+        avatarImg.src = imageUrl;
+
+        settingsPanel.classList.remove("visible");
 
     } catch (error) {
-        console.error("Error fetching AI response:", error);
-        addMessageToChat("persona", "Sorry, something went wrong. Please try again.");
+        console.error("Error generating avatar:", error);
+        alert("Sorry, there was an error generating the avatar. Please try again.");
+    } finally {
+        generateAvatarBtn.textContent = "Generate";
+        generateAvatarBtn.disabled = false;
     }
 }
 
-// --- 5. DEFINE THE HELPER FUNCTION ---
+
+// --- All other functions remain the same ---
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition;
+if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'en-US';
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        userInput.value = transcript;
+        handleUserInput();
+    };
+    recognition.onend = () => avatarContainer.classList.remove("listening");
+    recognition.onerror = (event) => console.error("Speech recognition error:", event.error);
+} else {
+    micBtn.style.display = 'none';
+}
+
+micBtn.addEventListener("click", () => {
+    if (recognition) {
+        avatarContainer.classList.add("listening");
+        recognition.start();
+    }
+});
+
+function speakMessage(text) {
+    if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        const googleVoice = availableVoices.find(voice => voice.name.includes('Google') && voice.lang.startsWith('en'));
+        if (googleVoice) utterance.voice = googleVoice;
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
+async function handleUserInput() {
+    const userMessage = userInput.value.trim();
+    if (!userMessage) return;
+    addMessageToChat("user", userMessage);
+    userInput.value = "";
+    try {
+        const result = await model.generateContent(userMessage);
+        const response = await result.response;
+        const aiMessage = response.text();
+        addMessageToChat("persona", aiMessage);
+        speakMessage(aiMessage);
+    } catch (error) {
+        console.error("Error fetching AI response:", error);
+        addMessageToChat("persona", "Sorry, something went wrong.");
+    }
+}
+
 function addMessageToChat(sender, message) {
-    // Create a new div element for the message
     const messageElement = document.createElement("div");
-
-    // Add the appropriate classes for styling
     messageElement.classList.add("message", sender === "user" ? "user-message" : "persona-message");
-
-    // Create a paragraph element for the message text
     const messageText = document.createElement("p");
     messageText.textContent = message;
-
-    // Add the text to the message element
     messageElement.appendChild(messageText);
-
-    // Add the message element to the chat window
     chatWindow.appendChild(messageElement);
-
-    // Automatically scroll to the bottom of the chat window
     chatWindow.scrollTop = chatWindow.scrollHeight;
 }

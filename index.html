@@ -9,24 +9,45 @@
 <body>
 
     <div id="app-container">
-        <h1>Project Persona</h1>
 
-        <div id="avatar-container">
-            <img src="https://via.placeholder.com/150" alt="Static Avatar Placeholder">
-        </div>
+        <header id="top-bar">
+            <h1>Project Persona</h1>
+            <button id="settings-btn" class="icon-btn">⚙️</button>
+        </header>
 
-        <div id="chat-window">
-            <div class="message persona-message">
-                <p>Hello! What would you like to talk about?</p>
+        <main id="main-content">
+            <div id="avatar-container">
+                <img id="avatar-img" src="https://storage.googleapis.com/gemini-prod/images/project_persona_avatar.png" alt="Persona Avatar">
+            </div>
+
+            <div id="chat-window">
+                <div class="message persona-message">
+                    <p>Hello! What would you like to talk about?</p>
+                </div>
+            </div>
+
+            <div id="input-container">
+                <input type="text" id="user-input" placeholder="Type or speak your message...">
+                <button id="mic-btn" class="icon-btn">🎙️</button>
+                <button id="send-btn" class="icon-btn">➤</button>
+            </div>
+        </main>
+
+        <div id="settings-panel">
+            <div class="settings-header">
+                <h2>Settings</h2>
+                <button id="close-settings-btn" class="icon-btn">✖</button>
+            </div>
+            <div class="settings-content">
+                <h3>Custom Avatar</h3>
+                <p>Describe the avatar you want to create.</p>
+                <textarea id="avatar-prompt" rows="3" placeholder="e.g., a happy robot with a flower on its head"></textarea>
+                <button id="generate-avatar-btn" class="primary-btn">Generate</button>
             </div>
         </div>
 
-        <div id="input-container">
-            <input type="text" id="user-input" placeholder="Type your message...">
-            <button id="send-btn">Send</button>
-        </div>
     </div>
 
-<script type="module" src="script.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>
